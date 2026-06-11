@@ -10,6 +10,12 @@ Uso:
         --input  data/pseudo_labeled_stance.csv \
         --output data/pseudo_labeled_filtered_0.97.csv \
         --threshold 0.97
+
+    # Com thresholds por classe (calibrados via threshold_calibration.py):
+    python confidence_filter.py \
+        --input  data/pseudo_labeled_stance.csv \
+        --output data/pseudo_labeled_filtered_perclass.csv \
+        --threshold-per-class "a favor=0.99,contra=0.97,neutro=0.995"
 """
 
 from __future__ import annotations
@@ -30,6 +36,11 @@ class FilterConfig:
     input_csv: Path = Path("data/pseudo_labeled_stance.csv")
     output_csv: Path = Path("data/pseudo_labeled_filtered_stance.csv")
     confidence_threshold: float = 0.97
+    # Thresholds por classe sobrepõem-se a confidence_threshold para as
+    # classes listadas (um threshold uniforme retém demasiados 'neutro'
+    # ruidosos e descarta demasiados 'a favor'). Classes não listadas
+    # usam confidence_threshold. Calibrar com threshold_calibration.py.
+    per_class_thresholds: dict[str, float] | None = None
     min_per_class: int = 100
 
 
@@ -43,8 +54,15 @@ class ConfidenceFilter:
         df["confidence"] = df["confidence"].astype(float)
 
         self._print_stats(df, "Antes do filtro")
-        df_filtered = df[df["confidence"] >= self.cfg.confidence_threshold].copy()
-        self._print_stats(df_filtered, f"Após filtro (conf ≥ {self.cfg.confidence_threshold})")
+        if self.cfg.per_class_thresholds:
+            thresholds = df["predicted_label"].map(
+                lambda c: self.cfg.per_class_thresholds.get(c, self.cfg.confidence_threshold)
+            )
+            df_filtered = df[df["confidence"] >= thresholds].copy()
+            self._print_stats(df_filtered, "Após filtro (thresholds por classe)")
+        else:
+            df_filtered = df[df["confidence"] >= self.cfg.confidence_threshold].copy()
+            self._print_stats(df_filtered, f"Após filtro (conf ≥ {self.cfg.confidence_threshold})")
 
         self._warn_if_low(df_filtered)
 
@@ -55,6 +73,7 @@ class ConfidenceFilter:
             "total_apos": len(df_filtered),
             "taxa_retencao": round(len(df_filtered) / max(len(df), 1), 4),
             "threshold": self.cfg.confidence_threshold,
+            "per_class_thresholds": self.cfg.per_class_thresholds,
             "distribuicao": dict(Counter(df_filtered["predicted_label"])),
         }
         summary_path = self.cfg.output_csv.parent / "filter_summary.json"
@@ -89,11 +108,25 @@ if __name__ == "__main__":
                         help="Caminho do CSV filtrado")
     parser.add_argument("--threshold", type=float, default=0.97,
                         help="Confiança mínima para reter um tweet (default: 0.97)")
+    parser.add_argument("--threshold-per-class", default=None,
+                        help="Thresholds por classe, ex. \"a favor=0.99,contra=0.97,neutro=0.995\". "
+                             "Classes não listadas usam --threshold.")
     args = parser.parse_args()
+
+    per_class = None
+    if args.threshold_per_class:
+        per_class = {}
+        for item in args.threshold_per_class.split(","):
+            cls, _, value = item.partition("=")
+            cls = cls.strip()
+            if cls not in STANCE_LABELS:
+                parser.error(f"Classe desconhecida '{cls}' (esperada uma de {STANCE_LABELS})")
+            per_class[cls] = float(value)
 
     cfg = FilterConfig(
         input_csv=Path(args.input),
         output_csv=Path(args.output),
         confidence_threshold=args.threshold,
+        per_class_thresholds=per_class,
     )
     ConfidenceFilter(cfg).run()

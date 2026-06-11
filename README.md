@@ -26,8 +26,11 @@ Anotações manuais (~5k)
         ▼
   bert_annotator.py (annotate, com --irony-filter)
         │                    → pseudo_labeled_stance.csv (~1M tweets)
+        ▼                    (opcional, recomendado)
+  threshold_calibration.py   → threshold_calibration.json (thresholds por classe)
+        │
         ▼
-  confidence_filter.py       → pseudo_labeled_filtered_0.97.csv (~400k tweets)
+  confidence_filter.py       → pseudo_labeled_filtered_perclass.csv (~230k tweets)
 ```
 
 ---
@@ -179,9 +182,38 @@ O processo é **retomável**: se interrompido, relê o ficheiro de saída existe
 
 ---
 
-### Passo 4 — Filtrar por confiança
+### Passo 4 (Opcional, recomendado) — Calibrar thresholds por classe
 
-Retém apenas os tweets onde o modelo teve alta confiança na sua predição:
+Em vez de um threshold uniforme, escolhe um threshold por classe via calibração de precisão no test split humano: para cada classe, o menor threshold da grelha `{0.90, 0.95, 0.97, 0.99, 0.995}` que atinge a precisão alvo (default: 0.90).
+
+```bash
+python threshold_calibration.py \
+    --model-dir  models/bert_stance \
+    --curated-csv data/curated_tweets_stance.csv \
+    --pseudo-csv data/pseudo_labeled_stance_noirony.csv \
+    --target-precision 0.90
+```
+
+O script:
+- Corre o modelo treinado no test split (restrito a tweets não-irônicos por defeito, para coincidir com a anotação `--irony-filter`; usar `--keep-ironic` para manter todos);
+- Imprime a tabela threshold × precisão por classe;
+- Projeta a distribuição do pool de pseudo-labels após o filtro;
+- Guarda tudo em `results/threshold_calibration.json` e imprime o comando pronto para o Passo 5.
+
+**Parâmetros principais:**
+
+| Parâmetro | Default | Descrição |
+|---|---|---|
+| `--target-precision` | 0.90 | Precisão mínima por classe no test split |
+| `--keep-ironic` | off | Mantém tweets irônicos no split de calibração |
+
+---
+
+### Passo 5 — Filtrar por confiança
+
+Retém apenas os tweets onde o modelo teve alta confiança na sua predição.
+
+Com threshold uniforme:
 
 ```bash
 python confidence_filter.py \
@@ -189,6 +221,17 @@ python confidence_filter.py \
     --output    data/pseudo_labeled_filtered_0.97.csv \
     --threshold 0.97
 ```
+
+Com thresholds por classe (saída do Passo 4; valores de exemplo do nosso corpus):
+
+```bash
+python confidence_filter.py \
+    --input  data/pseudo_labeled_stance_noirony.csv \
+    --output data/pseudo_labeled_filtered_perclass.csv \
+    --threshold-per-class "a favor=0.99,contra=0.97,neutro=0.995"
+```
+
+Classes não listadas em `--threshold-per-class` usam o valor de `--threshold`.
 
 ---
 
@@ -237,6 +280,24 @@ Para treinar GNNs com labels semi-supervisionados, preferimos menos exemplos com
 
 ---
 
+### Por que thresholds por classe?
+
+A confiança do softmax não é igualmente fiável em todas as classes. No nosso corpus, a precisão a t=0.90 era muito desigual: `a favor` e `contra` já eram limpas, mas `neutro` tinha precisão de apenas **0.65** — um threshold uniforme retém demasiados `neutro` errados e, ao subi-lo para compensar, descarta `a favor` correctos (a classe minoritária).
+
+A solução é calibrar um threshold por classe no test split humano (Passo 4), exigindo precisão ≥ 0.90 em cada classe. No nosso caso isso resultou em:
+
+| Classe | Threshold | Precisão no test split |
+|---|---|---|
+| a favor | 0.99 | 1.000 |
+| contra | 0.97 | 0.910 |
+| neutro | 0.995 | 1.000 |
+
+O efeito é um pool de pseudo-labels menor (~23% de retenção vs ~42% com threshold uniforme 0.97) mas com distribuição de classes muito mais saudável (`neutro` cai de ~48% para ~24% do pool). Na nossa aplicação downstream (detecção de comunidades com GNNs), isso traduziu-se em +4.7pp de pureza de stance (p<1e-10).
+
+**Atenção:** estes thresholds são específicos do par modelo+corpus. Após retreinar o modelo ou mudar de corpus, recalibrar com `threshold_calibration.py`.
+
+---
+
 ### Por que inferência sempre em CPU (Apple Silicon)?
 
 `BertForSequenceClassification` tem um bug numérico no backend MPS do PyTorch (Apple Silicon): o `argmax` dos logits produz resultados incorrectos durante inferência (F1 cai de ~0.70 para ~0.31). O treino em MPS funciona correctamente. A função `_get_device(infer=True)` devolve sempre `cpu` para inferência como workaround.
@@ -252,6 +313,7 @@ annotation-pipeline/
 ├── data_selection.py       # Passo 0: seleção e preparação do conjunto de treino
 ├── bert_irony.py           # Passo 1 (opcional): detector de ironia
 ├── bert_annotator.py       # Passos 2-3: stance classifier + anotação
-├── confidence_filter.py    # Passo 4: filtro por confiança
+├── threshold_calibration.py # Passo 4 (opcional): calibração de thresholds por classe
+├── confidence_filter.py    # Passo 5: filtro por confiança
 └── tweet_stream.py         # utilitário: leitura lazy de CSVs de tweets
 ```
