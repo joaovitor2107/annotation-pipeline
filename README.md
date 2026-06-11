@@ -1,6 +1,6 @@
 # Pipeline de Anotação de Stance para Tweets em Português
 
-Pipeline semissupervisionada para classificar a posição (_stance_) de tweets em três categorias, expandindo um conjunto pequeno de anotações manuais para centenas de milhares de pseudo-labels usando BERT fine-tuned.
+Pipeline semissupervisionado para classificar a posição (_stance_) de tweets em três categorias, expandindo um conjunto pequeno de anotações manuais para centenas de milhares de pseudo-labels usando BERT fine-tuned.
 
 Inclui opcionalmente um pré-filtro de ironia para melhorar a qualidade dos pseudo-labels.
 
@@ -47,7 +47,7 @@ CSV com pelo menos duas colunas. O separador pode ser `;` ou `,`:
 | 9876543210 | against |
 | 1122334455 | neutral |
 
-Os valores aceites para `Posicao_Final` são: `in favor`, `against`, `neutral`.
+Os valores aceitos para `Posicao_Final` são: `in favor`, `against`, `neutral`.
 
 ### 2. Tweets raw (`data/tweets/*.csv`)
 
@@ -72,7 +72,7 @@ A coluna `irony` (`ironic`/`not_ironic`) é opcional e só é usada pelo `bert_i
 pip install -r requirements.txt
 ```
 
-Todos os scripts são executados directamente na pasta `annotation-pipeline/`:
+Todos os scripts são executados diretamente na pasta `annotation-pipeline/`:
 
 ```bash
 cd annotation-pipeline/
@@ -178,13 +178,13 @@ python bert_annotator.py --step annotate \
     --annotation-output data/pseudo_labeled_stance_noirony.csv
 ```
 
-O processo é **retomável**: se interrompido, relê o ficheiro de saída existente e salta os IDs já anotados.
+O processo é **retomável**: se interrompido, relê o arquivo de saída existente e pula os IDs já anotados.
 
 ---
 
 ### Passo 4 (Opcional, recomendado) — Calibrar thresholds por classe
 
-Em vez de um threshold uniforme, escolhe um threshold por classe via calibração de precisão no test split humano: para cada classe, o menor threshold da grelha `{0.90, 0.95, 0.97, 0.99, 0.995}` que atinge a precisão alvo (default: 0.90).
+Em vez de um threshold uniforme, escolhe um threshold por classe via calibração de precisão no test split humano: para cada classe, o menor threshold da grade `{0.90, 0.95, 0.97, 0.99, 0.995}` que atinge a precisão alvo (default: 0.90).
 
 ```bash
 python threshold_calibration.py \
@@ -195,10 +195,10 @@ python threshold_calibration.py \
 ```
 
 O script:
-- Corre o modelo treinado no test split (restrito a tweets não-irônicos por defeito, para coincidir com a anotação `--irony-filter`; usar `--keep-ironic` para manter todos);
+- Roda o modelo treinado no test split (restrito a tweets não-irônicos por padrão, para coincidir com a anotação `--irony-filter`; use `--keep-ironic` para manter todos);
 - Imprime a tabela threshold × precisão por classe;
 - Projeta a distribuição do pool de pseudo-labels após o filtro;
-- Guarda tudo em `results/threshold_calibration.json` e imprime o comando pronto para o Passo 5.
+- Salva tudo em `results/threshold_calibration.json` e imprime o comando pronto para o Passo 5.
 
 **Parâmetros principais:**
 
@@ -239,7 +239,7 @@ Classes não listadas em `--threshold-per-class` usam o valor de `--threshold`.
 
 ### Por que BERTimbau?
 
-O [BERTimbau](https://huggingface.co/neuralmind/bert-base-portuguese-cased) (`neuralmind/bert-base-portuguese-cased`) é o modelo BERT pré-treinado em português mais estabelecido. Num contexto político brasileiro com gírias e referências culturais específicas, um modelo pré-treinado em PT-BR supera modelos multilinguais genéricos.
+O [BERTimbau](https://huggingface.co/neuralmind/bert-base-portuguese-cased) (`neuralmind/bert-base-portuguese-cased`) é o modelo BERT pré-treinado em português mais estabelecido. Em um contexto político brasileiro com gírias e referências culturais específicas, um modelo pré-treinado em PT-BR supera modelos multilinguais genéricos.
 
 Qualquer modelo BERT do HuggingFace pode ser usado via `--model-name`.
 
@@ -252,7 +252,7 @@ O BERTimbau-base tem 12 camadas. Com `--freeze-layers 4`:
 - As 4 camadas superiores + pooler + classificador são treinadas (adaptação ao domínio).
 - Isso corresponde a ~26% dos parâmetros treináveis vs 100% no full fine-tuning.
 
-**Porquê não treinar tudo?** Com ~5000 exemplos de treino, o full fine-tuning tende a sofrer de _catastrophic forgetting_: o modelo "esquece" o português e sobre-ajusta ao conjunto pequeno. Congelar as camadas base funciona como regularização implícita.
+**Por que não treinar tudo?** Com ~5000 exemplos de treino, o full fine-tuning tende a sofrer de _catastrophic forgetting_: o modelo "esquece" o português e se ajusta demais ao conjunto pequeno (overfitting). Congelar as camadas base funciona como regularização implícita.
 
 Em comparação, `freeze-layers=4` deu F1-macro=0.697 vs 0.667 do full fine-tuning.
 
@@ -262,7 +262,7 @@ Em comparação, `freeze-layers=4` deu F1-macro=0.697 vs 0.667 do full fine-tuni
 
 Tweets irônicos são classificados com o _label_ errado pelo modelo de stance porque o texto aparenta uma posição que é o oposto do que o autor pretende. Por exemplo, _"Que povo democrático! 🤡"_ parece `neutro` mas é `contra`.
 
-A estratégia escolhida é **ignorar** tweets irônicos (não os incluir nos pseudo-labels), e não tentar inverter o label — porque o detector de ironia tem muitos falsos positivos, e inverter labels correctos piora o conjunto.
+A estratégia escolhida é **ignorar** tweets irônicos (não incluí-los nos pseudo-labels), e não tentar inverter o label — porque o detector de ironia tem muitos falsos positivos, e inverter labels corretos piora o conjunto.
 
 Com `--irony-threshold 0.10`, o detector usa um limiar baixo (alta sensibilidade / recall), privilegiando a remoção de irônicos reais mesmo à custa de também remover alguns não-irônicos. No nosso corpus, removeu ~18% dos tweets.
 
@@ -282,7 +282,7 @@ Para treinar GNNs com labels semi-supervisionados, preferimos menos exemplos com
 
 ### Por que thresholds por classe?
 
-A confiança do softmax não é igualmente fiável em todas as classes. No nosso corpus, a precisão a t=0.90 era muito desigual: `a favor` e `contra` já eram limpas, mas `neutro` tinha precisão de apenas **0.65** — um threshold uniforme retém demasiados `neutro` errados e, ao subi-lo para compensar, descarta `a favor` correctos (a classe minoritária).
+A confiança do softmax não é igualmente confiável em todas as classes. No nosso corpus, a precisão em t=0.90 era muito desigual: `a favor` e `contra` já eram limpas, mas `neutro` tinha precisão de apenas **0.65** — um threshold uniforme mantém muitos `neutro` errados e, ao aumentá-lo para compensar, descarta `a favor` corretos (a classe minoritária).
 
 A solução é calibrar um threshold por classe no test split humano (Passo 4), exigindo precisão ≥ 0.90 em cada classe. No nosso caso isso resultou em:
 
@@ -292,19 +292,19 @@ A solução é calibrar um threshold por classe no test split humano (Passo 4), 
 | contra | 0.97 | 0.910 |
 | neutro | 0.995 | 1.000 |
 
-O efeito é um pool de pseudo-labels menor (~23% de retenção vs ~42% com threshold uniforme 0.97) mas com distribuição de classes muito mais saudável (`neutro` cai de ~48% para ~24% do pool). Na nossa aplicação downstream (detecção de comunidades com GNNs), isso traduziu-se em +4.7pp de pureza de stance (p<1e-10).
+O efeito é um pool de pseudo-labels menor (~23% de retenção vs ~42% com threshold uniforme 0.97) mas com distribuição de classes muito mais saudável (`neutro` cai de ~48% para ~24% do pool). Na nossa aplicação downstream (detecção de comunidades com GNNs), isso se traduziu em +4.7pp de pureza de stance (p<1e-10).
 
-**Atenção:** estes thresholds são específicos do par modelo+corpus. Após retreinar o modelo ou mudar de corpus, recalibrar com `threshold_calibration.py`.
+**Atenção:** esses thresholds são específicos do par modelo+corpus. Após retreinar o modelo ou mudar de corpus, recalibre com `threshold_calibration.py`.
 
 ---
 
 ### Por que inferência sempre em CPU (Apple Silicon)?
 
-`BertForSequenceClassification` tem um bug numérico no backend MPS do PyTorch (Apple Silicon): o `argmax` dos logits produz resultados incorrectos durante inferência (F1 cai de ~0.70 para ~0.31). O treino em MPS funciona correctamente. A função `_get_device(infer=True)` devolve sempre `cpu` para inferência como workaround.
+`BertForSequenceClassification` tem um bug numérico no backend MPS do PyTorch (Apple Silicon): o `argmax` dos logits produz resultados incorretos durante a inferência (F1 cai de ~0.70 para ~0.31). O treino em MPS funciona corretamente. A função `_get_device(infer=True)` sempre retorna `cpu` para inferência como workaround.
 
 ---
 
-## Estrutura de Ficheiros
+## Estrutura de Arquivos
 
 ```
 annotation-pipeline/
