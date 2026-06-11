@@ -1,8 +1,8 @@
 """
 Leitura eficiente de um grande corpus de tweets distribuído em vários CSVs.
 
-RawTweetStream itera de forma lazy sobre todos os ficheiros CSV de um ou mais
-diretórios, aplicando deduplicação por conversation_id e saltando tweets
+RawTweetStream itera de forma lazy sobre todos os arquivos CSV de um ou mais
+diretórios, aplicando deduplicação por conversation_id e pulando tweets
 já anotados.
 """
 
@@ -18,8 +18,8 @@ import pandas as pd
 class RawTweetStream:
     """Iterator lazy sobre CSVs de tweets.
 
-    Lê os ficheiros em chunks para não carregar tudo em memória.
-    Filtra IDs já anotados em cada chunk antes de os ceder ao chamador.
+    Lê os arquivos em chunks para não carregar tudo em memória.
+    Filtra IDs já anotados em cada chunk antes de entregá-los ao chamador.
     """
 
     def __init__(

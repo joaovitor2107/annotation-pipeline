@@ -181,7 +181,7 @@ class IronyDetector:
                 best_f1, patience_count = val_f1, 0
                 model.save_pretrained(self.cfg.model_dir)
                 tokenizer.save_pretrained(self.cfg.model_dir)
-                print(f"  → Novo melhor ({best_f1:.4f}), guardado.")
+                print(f"  → Novo melhor ({best_f1:.4f}), salvo.")
             else:
                 patience_count += 1
                 print(f"  → Sem melhoria ({patience_count}/{self.cfg.early_stopping_patience})")

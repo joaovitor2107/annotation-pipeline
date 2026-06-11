@@ -1,14 +1,14 @@
 """
 Calibração de thresholds de confiança por classe.
 
-Um threshold de confiança uniforme retém demasiados 'neutro' ruidosos e
-descarta demasiados 'a favor' nos pseudo-labels. Este script escolhe
+Um threshold de confiança uniforme mantém muitos 'neutro' ruidosos e
+descarta muitos 'a favor' nos pseudo-labels. Este script escolhe
 thresholds por classe via calibração de precisão no test split humano:
-para cada classe c, o menor threshold t_c na grelha tal que
+para cada classe c, o menor threshold t_c na grade tal que
 precision(pred=c, conf>=t_c) atinge o alvo.
 
-Por defeito, o test split é restrito a tweets não-irônicos, para coincidir
-com a pipeline de anotação com --irony-filter (estratégia "ignorar").
+Por padrão, o test split é restrito a tweets não-irônicos, para coincidir
+com o pipeline de anotação com --irony-filter (estratégia "ignorar").
 
 Uso:
     python threshold_calibration.py \
@@ -42,7 +42,7 @@ GRID = [0.90, 0.95, 0.97, 0.99, 0.995]
 
 
 def predict_test_split(model_dir: Path, curated_csv: Path, drop_ironic: bool):
-    """Devolve (labels_verdadeiros, labels_preditos, confianças) no test split humano."""
+    """Retorna (labels_verdadeiros, labels_preditos, confianças) no test split humano."""
     cfg = BERTConfig()
     df = pd.read_csv(curated_csv, dtype=str)
     df = df[df["label"].isin(STANCE_LABELS)].copy()
@@ -51,7 +51,7 @@ def predict_test_split(model_dir: Path, curated_csv: Path, drop_ironic: bool):
         before = len(test_df)
         test_df = test_df[test_df["irony"] != "ironic"]
         print(f"Removidos {before - len(test_df)} tweets irônicos do test split "
-              f"({len(test_df)} restantes) — coincide com a pipeline --irony-filter")
+              f"({len(test_df)} restantes) — coincide com o pipeline --irony-filter")
 
     device = _get_device(infer=True)  # CPU — bug de inferência BERT no MPS
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name, normalization=True)
@@ -81,7 +81,7 @@ def predict_test_split(model_dir: Path, curated_csv: Path, drop_ironic: bool):
 
 
 def calibrate(true, pred, conf, target_precision: float) -> dict:
-    """Menor threshold da grelha, por classe, que atinge a precisão alvo."""
+    """Menor threshold da grade, por classe, que atinge a precisão alvo."""
     thresholds = {}
     for cls, cls_id in LABEL2ID.items():
         print(f"\n{cls}:")
@@ -99,7 +99,7 @@ def calibrate(true, pred, conf, target_precision: float) -> dict:
         if chosen is None:
             chosen = GRID[-1]
             print(f"  AVISO: precisão alvo {target_precision} nunca atingida; "
-                  f"a usar o threshold máximo da grelha {chosen}")
+                  f"usando o threshold máximo da grade {chosen}")
         thresholds[cls] = chosen
         print(f"  → threshold[{cls}] = {chosen}")
     return thresholds
@@ -159,7 +159,7 @@ def main():
             "test_split_size": len(true),
             "projection": projection,
         }, f, indent=2, ensure_ascii=False)
-    print(f"\nGuardado: {out}")
+    print(f"\nSalvo: {out}")
     cli = ",".join(f"{c}={t}" for c, t in thresholds.items())
     print(f"\nPróximo passo:\n  python confidence_filter.py \\\n"
           f"      --input {args.pseudo_csv} \\\n"

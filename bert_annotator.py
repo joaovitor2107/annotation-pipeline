@@ -206,7 +206,7 @@ class BERTStanceAnnotator:
                 best_f1, patience_count = val_f1, 0
                 model.save_pretrained(self.cfg.model_dir)
                 tokenizer.save_pretrained(self.cfg.model_dir)
-                print(f"  → Novo melhor ({best_f1:.4f}), guardado em {self.cfg.model_dir}")
+                print(f"  → Novo melhor ({best_f1:.4f}), salvo em {self.cfg.model_dir}")
             else:
                 patience_count += 1
                 print(f"  → Sem melhoria ({patience_count}/{self.cfg.early_stopping_patience})")
@@ -289,7 +289,7 @@ class BERTStanceAnnotator:
             df_prev = pd.read_csv(out_path, usecols=["conversation_id"], dtype=str)
             prev_ids = set(df_prev["conversation_id"].str.strip().dropna())
             skip_ids.update(prev_ids)
-            print(f"Retomando: {len(prev_ids)} já anotados, {len(skip_ids)} total a saltar.")
+            print(f"Retomando: {len(prev_ids)} já anotados, {len(skip_ids)} total a pular.")
             write_header = False
         else:
             write_header = True

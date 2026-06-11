@@ -70,7 +70,7 @@ class DataSelector:
 
         df.to_csv(self.cfg.output_path, index=False)
         self._print_summary(df)
-        print(f"\nGuardado em: {self.cfg.output_path}")
+        print(f"\nSalvo em: {self.cfg.output_path}")
         return self.cfg.output_path
 
     def _load_annotations(self) -> pd.DataFrame:

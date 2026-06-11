@@ -36,9 +36,9 @@ class FilterConfig:
     input_csv: Path = Path("data/pseudo_labeled_stance.csv")
     output_csv: Path = Path("data/pseudo_labeled_filtered_stance.csv")
     confidence_threshold: float = 0.97
-    # Thresholds por classe sobrepõem-se a confidence_threshold para as
-    # classes listadas (um threshold uniforme retém demasiados 'neutro'
-    # ruidosos e descarta demasiados 'a favor'). Classes não listadas
+    # Thresholds por classe se sobrepõem a confidence_threshold para as
+    # classes listadas (um threshold uniforme mantém muitos 'neutro'
+    # ruidosos e descarta muitos 'a favor'). Classes não listadas
     # usam confidence_threshold. Calibrar com threshold_calibration.py.
     per_class_thresholds: dict[str, float] | None = None
     min_per_class: int = 100
@@ -80,7 +80,7 @@ class ConfidenceFilter:
         with open(summary_path, "w") as f:
             json.dump(summary, f, indent=2, ensure_ascii=False)
 
-        print(f"\nFicheiro filtrado: {self.cfg.output_csv}")
+        print(f"\nArquivo filtrado: {self.cfg.output_csv}")
         print(f"Resumo: {self.cfg.output_csv.parent / 'filter_summary.json'}")
         return self.cfg.output_csv
 
