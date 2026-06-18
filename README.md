@@ -9,7 +9,7 @@ Inclui opcionalmente um pré-filtro de ironia para melhorar a qualidade dos pseu
 ## Visão Geral
 
 ```
-Anotações manuais (~5k)
+Anotações manuais (~3k)
         │
         ▼
   data_selection.py          → curated_tweets_stance.csv
