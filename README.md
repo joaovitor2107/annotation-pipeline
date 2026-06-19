@@ -8,30 +8,14 @@ Inclui opcionalmente um pré-filtro de ironia para melhorar a qualidade dos pseu
 
 ## Visão Geral
 
-```
-Anotações manuais (~3k)
-        │
-        ▼
-  data_selection.py          → curated_tweets_stance.csv
-        │
-        ▼
-  bert_annotator.py (train)  → models/bert_stance/
-        │
-        ▼
-  bert_annotator.py (eval)   → Relatório de classificação no test set
-        │
-        ▼                    (opcional)
-  bert_irony.py (train)      → models/bert_irony/
-        │
-        ▼
-  bert_annotator.py (annotate, com --irony-filter)
-        │                    → pseudo_labeled_stance.csv (~1M tweets)
-        ▼                    (opcional, recomendado)
-  threshold_calibration.py   → threshold_calibration.json (thresholds por classe)
-        │
-        ▼
-  confidence_filter.py       → pseudo_labeled_filtered_perclass.csv (~230k tweets)
-```
+Anotações manuais (~3k) alimentam o pipeline abaixo. Cada etapa abaixo está linkada para a sua descrição detalhada no [Passo a Passo](#passo-a-passo):
+
+0. [`data_selection.py`](#passo-0--preparar-o-conjunto-de-treino) → `curated_tweets_stance.csv`
+1. _(opcional)_ [`bert_irony.py` (train)](#passo-1-opcional--treinar-o-detector-de-ironia) → `models/bert_irony/`
+2. [`bert_annotator.py` (train/eval)](#passo-2--treinar-o-classificador-de-stance) → `models/bert_stance/` + relatório de classificação no test set
+3. [`bert_annotator.py` (annotate, com `--irony-filter`)](#passo-3--anotar-o-corpus-completo) → `pseudo_labeled_stance.csv` (~1M tweets)
+4. _(opcional, recomendado)_ [`threshold_calibration.py`](#passo-4-opcional-recomendado--calibrar-thresholds-por-classe) → `threshold_calibration.json` (thresholds por classe)
+5. [`confidence_filter.py`](#passo-5--filtrar-por-confiança) → `pseudo_labeled_filtered_perclass.csv` (~230k tweets)
 
 ---
 
